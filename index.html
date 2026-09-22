@@ -57,7 +57,7 @@ textarea{min-height:80px}
 🎤 DICTAR GASTO
 </button>
 
-<p>Ejemplo: “Nafta 35 mil Fer débito”</p>
+<p>Ejemplo: “Nafta 35 mil Fer efectivo observación viaje a Miramar”</p>
 
 <div id="heard"></div>
 
@@ -127,9 +127,52 @@ function msg(t,ok=false){
   $('msg').textContent=t;
 }
 
+
+// INTERPRETAR DICTADO
+
 function interpretar(o){
 
-  let t=o.toLowerCase();
+  let textoOriginal = o.trim();
+  let t = textoOriginal.toLowerCase();
+
+
+  // -------------------------
+  // OBSERVACIÓN
+  // -------------------------
+
+  let observacion = '';
+
+  let obsMatch = textoOriginal.match(
+    /\b(?:observaci[oó]n|observaciones|nota|aclaraci[oó]n)\b[\s,:-]*(.+)$/i
+  );
+
+  if(obsMatch){
+
+    observacion = obsMatch[1].trim();
+
+    if(observacion){
+
+      observacion =
+        observacion.charAt(0).toUpperCase() +
+        observacion.slice(1);
+
+      $('observacion').value = observacion;
+    }
+
+    // Sacamos la observación del texto
+    // que se usa para interpretar el gasto
+
+    textoOriginal = textoOriginal
+      .substring(0,obsMatch.index)
+      .trim();
+
+    t = textoOriginal.toLowerCase();
+  }
+
+
+  // -------------------------
+  // CATEGORÍA
+  // -------------------------
 
   if(t.includes('empleado'))
     $('categoria').value='Empleados';
@@ -147,6 +190,10 @@ function interpretar(o){
     $('categoria').value='Taller';
 
 
+  // -------------------------
+  // MEDIO DE PAGO
+  // -------------------------
+
   if(t.includes('transferencia'))
     $('medio').value='Transferencia';
 
@@ -160,6 +207,10 @@ function interpretar(o){
     $('medio').value='Crédito';
 
 
+  // -------------------------
+  // QUIÉN PAGÓ
+  // -------------------------
+
   if(/\bale\b/i.test(t))
     $('persona').value='Ale';
 
@@ -167,36 +218,61 @@ function interpretar(o){
     $('persona').value='Fer';
 
 
+  // -------------------------
+  // IMPORTE
+  // -------------------------
+
   let n=null;
 
-  let m=t.match(/(\d+(?:[.,]\d+)?)\s*mil\b/);
+  let m=t.match(
+    /(\d+(?:[.,]\d+)?)\s*mil\b/
+  );
 
   if(m){
 
     n=Math.round(
-      parseFloat(m[1].replace(',','.'))*1000
+      parseFloat(
+        m[1].replace(',','.')
+      )*1000
     );
 
   }else{
 
-    let a=t.match(/\d[\d.,]*/g);
+    let a=t.match(
+      /\d[\d.,]*/g
+    );
 
-    if(a?.length)
-      n=parseInt(a[0].replace(/[.,]/g,''),10);
+    if(a?.length){
+
+      n=parseInt(
+        a[0].replace(/[.,]/g,''),
+        10
+      );
+
+    }
   }
 
   if(n)
     $('importe').value=n;
 
 
-  let d=o
+  // -------------------------
+  // DESCRIPCIÓN
+  // -------------------------
+
+  let d=textoOriginal
     .split(/\d/)[0]
     .replace(/[,.;]+$/g,'')
     .trim();
 
-  if(d)
-    $('descripcion').value=
-      d.charAt(0).toUpperCase()+d.slice(1);
+  if(d){
+
+    $('descripcion').value =
+      d.charAt(0).toUpperCase() +
+      d.slice(1);
+
+  }
+
 }
 
 
@@ -215,16 +291,22 @@ if(SR){
   r.continuous=false;
   r.maxAlternatives=1;
 
+
   $('voice').onclick=()=>{
 
     try{
 
       r.start();
 
-      $('voice').classList.add('listening');
-      $('voice').textContent='🔴 ESCUCHANDO...';
+      $('voice').classList.add(
+        'listening'
+      );
+
+      $('voice').textContent=
+        '🔴 ESCUCHANDO...';
 
     }catch(e){}
+
   };
 
 
@@ -240,36 +322,45 @@ if(SR){
 
       if(e.results[i].isFinal){
 
-        t += e.results[i][0].transcript;
+        t +=
+          e.results[i][0].transcript;
 
       }
+
     }
 
     t=t.trim();
 
     if(t){
 
-      $('heard').textContent=
+      $('heard').textContent =
         'Dictado: “'+t+'”';
 
       interpretar(t);
 
     }
+
   };
 
 
   r.onerror=e=>
-    msg('Error de micrófono: '+e.error);
+    msg(
+      'Error de micrófono: '+
+      e.error
+    );
 
 
   r.onend=()=>{
 
-    $('voice').classList.remove('listening');
+    $('voice').classList.remove(
+      'listening'
+    );
 
     $('voice').textContent=
       '🎤 DICTAR GASTO';
 
   };
+
 
 }else{
 
@@ -287,32 +378,41 @@ $('save').onclick=async()=>{
 
   const boton=$('save');
 
-  // Evita doble toque
+
+  // EVITAR DOBLE TOQUE
+
   if(boton.disabled)
     return;
 
 
   let d={
 
-    expense_date:$('fecha').value,
+    expense_date:
+      $('fecha').value,
 
-    person:$('persona').value,
+    person:
+      $('persona').value,
 
     description:
       $('descripcion').value.trim(),
 
-    category:$('categoria').value,
+    category:
+      $('categoria').value,
 
-    payment_method:$('medio').value,
+    payment_method:
+      $('medio').value,
 
-    amount:Number(
-      $('importe').value
-    ),
+    amount:
+      Number(
+        $('importe').value
+      ),
 
     notes:
       $('observacion').value.trim(),
 
-    source:'STMDP Movil PWA'
+    source:
+      'STMDP Movil PWA'
+
   };
 
 
@@ -323,6 +423,7 @@ $('save').onclick=async()=>{
     );
 
     return;
+
   }
 
 
@@ -333,12 +434,16 @@ $('save').onclick=async()=>{
     );
 
     return;
+
   }
 
 
-  // Bloquear botón inmediatamente
+  // BLOQUEAR BOTÓN
+
   boton.disabled=true;
-  boton.textContent='GUARDANDO...';
+
+  boton.textContent=
+    'GUARDANDO...';
 
 
   try{
@@ -346,6 +451,7 @@ $('save').onclick=async()=>{
     let r=await fetch(
       BACKEND_URL,
       {
+
         method:'POST',
 
         headers:{
@@ -353,12 +459,15 @@ $('save').onclick=async()=>{
           'text/plain;charset=utf-8'
         },
 
-        body:JSON.stringify(d)
+        body:
+          JSON.stringify(d)
+
       }
     );
 
 
-    let x=await r.json();
+    let x=
+      await r.json();
 
 
     if(!x.ok)
@@ -373,7 +482,7 @@ $('save').onclick=async()=>{
     );
 
 
-    // LIMPIAR PARA EL PRÓXIMO GASTO
+    // LIMPIAR FORMULARIO
 
     $('descripcion').value='';
     $('importe').value='';
@@ -388,18 +497,17 @@ $('save').onclick=async()=>{
 
     $('heard').textContent='';
 
-    $('fecha').value=fechaHoy();
+    $('fecha').value=
+      fechaHoy();
 
 
-    // Reactivar botón
+    // REACTIVAR BOTÓN
 
     boton.disabled=false;
 
     boton.textContent=
       'GUARDAR GASTO';
 
-
-    // Volver arriba
 
     window.scrollTo({
       top:0,
@@ -414,9 +522,6 @@ $('save').onclick=async()=>{
       e.message
     );
 
-
-    // Si hubo error también
-    // permitimos volver a intentar
 
     boton.disabled=false;
 
