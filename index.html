@@ -1,41 +1,442 @@
-<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#173f69"><title>STMDP Móvil</title><link rel="manifest" href="manifest.webmanifest"><style>*{box-sizing:border-box}body{margin:0;font-family:Arial;background:#eef3f8;color:#17324d}header{background:#173f69;color:white;padding:20px;text-align:center}.w{max-width:600px;margin:auto;padding:18px}.c{background:white;border-radius:15px;padding:20px;box-shadow:0 3px 12px #0002}label{display:block;font-weight:bold;margin:14px 0 6px}input,select,textarea{width:100%;padding:14px;font-size:18px;border:1px solid #bcc8d4;border-radius:9px}textarea{min-height:80px}.b{width:100%;padding:18px;border:0;border-radius:12px;color:white;font-size:20px;font-weight:bold}.voice{background:#287bbb}.save{background:#198754;margin-top:22px}.listening{background:#b42318}.m{margin-top:14px;padding:12px;border-radius:8px}.err{background:#fde0e0;color:#9b1c1c}.ok{background:#d9f4e5;color:#12633a}</style></head><body><header><h1>STMDP MÓVIL</h1><div>Servicio Técnico Mar del Plata</div></header><div class="w"><div class="c"><h2>💰 Nuevo gasto</h2><button id="voice" class="b voice">🎤 DICTAR GASTO</button><p>Ejemplo: “Nafta 35 mil Fer débito”</p><div id="heard"></div><label>Fecha</label><input type="date" id="fecha"><label>Descripción</label><input id="descripcion"><label>Importe</label><input type="number" inputmode="numeric" id="importe"><label>Pagó</label><select id="persona"><option>Fer</option><option>Ale</option></select><label>Categoría</label><select id="categoria"><option>Otros</option><option>Empleados</option><option>Combustible</option><option>Repuestos</option><option>Publicidad</option><option>Taller</option></select><label>Medio de pago</label><select id="medio"><option value=""></option><option>Efectivo</option><option>Transferencia</option><option>Débito</option><option>Crédito</option></select><label>Observación</label><textarea id="observacion"></textarea><button id="save" class="b save">GUARDAR GASTO</button><div id="msg"></div></div></div><script>
-const BACKEND_URL="https://script.google.com/macros/s/AKfycbx139-qB543m86eGY--EkcH7Bl_6GQqp9aQbwYnmhmTLMjz-jXaWUe5HVhkWRxOSyNxJw/exec"; const $=x=>document.getElementById(x); $('fecha').value=new Date().toLocaleDateString('en-CA',{timeZone:'America/Argentina/Buenos_Aires'});
-function msg(t,ok=false){$('msg').className='m '+(ok?'ok':'err');$('msg').textContent=t}
-function interpretar(o){let t=o.toLowerCase();if(t.includes('empleado'))$('categoria').value='Empleados';else if(/nafta|gasoil|combustible/.test(t))$('categoria').value='Combustible';else if(t.includes('repuesto'))$('categoria').value='Repuestos';else if(/publicidad|google ads/.test(t))$('categoria').value='Publicidad';else if(t.includes('taller'))$('categoria').value='Taller';if(t.includes('transferencia'))$('medio').value='Transferencia';else if(t.includes('efectivo'))$('medio').value='Efectivo';else if(/débito|debito/.test(t))$('medio').value='Débito';else if(/crédito|credito/.test(t))$('medio').value='Crédito';if(/\bale\b/i.test(t))$('persona').value='Ale';else if(/\bfer\b/i.test(t))$('persona').value='Fer';let n=null,m=t.match(/(\d+(?:[.,]\d+)?)\s*mil\b/);if(m)n=Math.round(parseFloat(m[1].replace(',','.'))*1000);else{let a=t.match(/\d[\d.,]*/g);if(a?.length)n=parseInt(a[0].replace(/[.,]/g,''),10)}if(n)$('importe').value=n;let d=o.split(/\d/)[0].replace(/[,.;]+$/g,'').trim();if(d)$('descripcion').value=d.charAt(0).toUpperCase()+d.slice(1)}
-const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(SR){let r=new SR();r.lang='es-AR';r.interimResults=false;
-r.continuous=false;
-r.maxAlternatives=1;$('voice').onclick=()=>{try{r.start();$('voice').classList.add('listening');$('voice').textContent='🔴 ESCUCHANDO...'}catch(e){}};r.onresult = e => {
-  let t = '';
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#173f69">
+<title>STMDP Móvil</title>
+<link rel="manifest" href="manifest.webmanifest">
 
-  for (let i = e.resultIndex; i < e.results.length; i++) {
-    if (e.results[i].isFinal) {
-      t += e.results[i][0].transcript;
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial;background:#eef3f8;color:#17324d}
+header{background:#173f69;color:white;padding:20px;text-align:center}
+.w{max-width:600px;margin:auto;padding:18px}
+.c{background:white;border-radius:15px;padding:20px;box-shadow:0 3px 12px #0002}
+label{display:block;font-weight:bold;margin:14px 0 6px}
+input,select,textarea{
+  width:100%;
+  padding:14px;
+  font-size:18px;
+  border:1px solid #bcc8d4;
+  border-radius:9px
+}
+textarea{min-height:80px}
+.b{
+  width:100%;
+  padding:18px;
+  border:0;
+  border-radius:12px;
+  color:white;
+  font-size:20px;
+  font-weight:bold
+}
+.voice{background:#287bbb}
+.save{background:#198754;margin-top:22px}
+.save:disabled{opacity:.6}
+.listening{background:#b42318}
+.m{margin-top:14px;padding:12px;border-radius:8px}
+.err{background:#fde0e0;color:#9b1c1c}
+.ok{background:#d9f4e5;color:#12633a}
+</style>
+</head>
+
+<body>
+
+<header>
+<h1>STMDP MÓVIL</h1>
+<div>Servicio Técnico Mar del Plata</div>
+</header>
+
+<div class="w">
+<div class="c">
+
+<h2>💰 Nuevo gasto</h2>
+
+<button id="voice" class="b voice">
+🎤 DICTAR GASTO
+</button>
+
+<p>Ejemplo: “Nafta 35 mil Fer débito”</p>
+
+<div id="heard"></div>
+
+<label>Fecha</label>
+<input type="date" id="fecha">
+
+<label>Descripción</label>
+<input id="descripcion">
+
+<label>Importe</label>
+<input type="number" inputmode="numeric" id="importe">
+
+<label>Pagó</label>
+<select id="persona">
+<option>Fer</option>
+<option>Ale</option>
+</select>
+
+<label>Categoría</label>
+<select id="categoria">
+<option>Otros</option>
+<option>Empleados</option>
+<option>Combustible</option>
+<option>Repuestos</option>
+<option>Publicidad</option>
+<option>Taller</option>
+</select>
+
+<label>Medio de pago</label>
+<select id="medio">
+<option value=""></option>
+<option>Efectivo</option>
+<option>Transferencia</option>
+<option>Débito</option>
+<option>Crédito</option>
+</select>
+
+<label>Observación</label>
+<textarea id="observacion"></textarea>
+
+<button id="save" class="b save">
+GUARDAR GASTO
+</button>
+
+<div id="msg"></div>
+
+</div>
+</div>
+
+<script>
+
+const BACKEND_URL =
+"https://script.google.com/macros/s/AKfycbx139-qB543m86eGY--EkcH7Bl_6GQqp9aQbwYnmhmTLMjz-jXaWUe5HVhkWRxOSyNxJw/exec";
+
+const $ = x => document.getElementById(x);
+
+function fechaHoy(){
+  return new Date().toLocaleDateString('en-CA',{
+    timeZone:'America/Argentina/Buenos_Aires'
+  });
+}
+
+$('fecha').value = fechaHoy();
+
+function msg(t,ok=false){
+  $('msg').className='m '+(ok?'ok':'err');
+  $('msg').textContent=t;
+}
+
+function interpretar(o){
+
+  let t=o.toLowerCase();
+
+  if(t.includes('empleado'))
+    $('categoria').value='Empleados';
+
+  else if(/nafta|gasoil|combustible/.test(t))
+    $('categoria').value='Combustible';
+
+  else if(t.includes('repuesto'))
+    $('categoria').value='Repuestos';
+
+  else if(/publicidad|google ads/.test(t))
+    $('categoria').value='Publicidad';
+
+  else if(t.includes('taller'))
+    $('categoria').value='Taller';
+
+
+  if(t.includes('transferencia'))
+    $('medio').value='Transferencia';
+
+  else if(t.includes('efectivo'))
+    $('medio').value='Efectivo';
+
+  else if(/débito|debito/.test(t))
+    $('medio').value='Débito';
+
+  else if(/crédito|credito/.test(t))
+    $('medio').value='Crédito';
+
+
+  if(/\bale\b/i.test(t))
+    $('persona').value='Ale';
+
+  else if(/\bfer\b/i.test(t))
+    $('persona').value='Fer';
+
+
+  let n=null;
+
+  let m=t.match(/(\d+(?:[.,]\d+)?)\s*mil\b/);
+
+  if(m){
+
+    n=Math.round(
+      parseFloat(m[1].replace(',','.'))*1000
+    );
+
+  }else{
+
+    let a=t.match(/\d[\d.,]*/g);
+
+    if(a?.length)
+      n=parseInt(a[0].replace(/[.,]/g,''),10);
+  }
+
+  if(n)
+    $('importe').value=n;
+
+
+  let d=o
+    .split(/\d/)[0]
+    .replace(/[,.;]+$/g,'')
+    .trim();
+
+  if(d)
+    $('descripcion').value=
+      d.charAt(0).toUpperCase()+d.slice(1);
+}
+
+
+// MICRÓFONO
+
+const SR =
+window.SpeechRecognition ||
+window.webkitSpeechRecognition;
+
+if(SR){
+
+  let r=new SR();
+
+  r.lang='es-AR';
+  r.interimResults=false;
+  r.continuous=false;
+  r.maxAlternatives=1;
+
+  $('voice').onclick=()=>{
+
+    try{
+
+      r.start();
+
+      $('voice').classList.add('listening');
+      $('voice').textContent='🔴 ESCUCHANDO...';
+
+    }catch(e){}
+  };
+
+
+  r.onresult = e => {
+
+    let t = '';
+
+    for(
+      let i=e.resultIndex;
+      i<e.results.length;
+      i++
+    ){
+
+      if(e.results[i].isFinal){
+
+        t += e.results[i][0].transcript;
+
+      }
     }
+
+    t=t.trim();
+
+    if(t){
+
+      $('heard').textContent=
+        'Dictado: “'+t+'”';
+
+      interpretar(t);
+
+    }
+  };
+
+
+  r.onerror=e=>
+    msg('Error de micrófono: '+e.error);
+
+
+  r.onend=()=>{
+
+    $('voice').classList.remove('listening');
+
+    $('voice').textContent=
+      '🎤 DICTAR GASTO';
+
+  };
+
+}else{
+
+  $('voice').onclick=()=>
+    msg(
+      'Este navegador no ofrece reconocimiento de voz web.'
+    );
+
+}
+
+
+// GUARDAR
+
+$('save').onclick=async()=>{
+
+  const boton=$('save');
+
+  // Evita doble toque
+  if(boton.disabled)
+    return;
+
+
+  let d={
+
+    expense_date:$('fecha').value,
+
+    person:$('persona').value,
+
+    description:
+      $('descripcion').value.trim(),
+
+    category:$('categoria').value,
+
+    payment_method:$('medio').value,
+
+    amount:Number(
+      $('importe').value
+    ),
+
+    notes:
+      $('observacion').value.trim(),
+
+    source:'STMDP Movil PWA'
+  };
+
+
+  if(!d.description || !d.amount){
+
+    msg(
+      'Completá descripción e importe.'
+    );
+
+    return;
   }
 
-  t = t.trim();
 
-  if (t) {
-    $('heard').textContent = 'Dictado: “' + t + '”';
-    interpretar(t);
+  if(!BACKEND_URL){
+
+    msg(
+      'La PWA está lista. Falta conectar el backend de Apps Script.'
+    );
+
+    return;
   }
-};r.onerror=e=>msg('Error de micrófono: '+e.error);r.onend=()=>{$('voice').classList.remove('listening');$('voice').textContent='🎤 DICTAR GASTO'}}else $('voice').onclick=()=>msg('Este navegador no ofrece reconocimiento de voz web.');
-$('save').onclick=async()=>{let d={expense_date:$('fecha').value,person:$('persona').value,description:$('descripcion').value.trim(),category:$('categoria').value,payment_method:$('medio').value,amount:Number($('importe').value),notes:$('observacion').value.trim(),source:'STMDP Movil PWA'};if(!d.description||!d.amount)return msg('Completá descripción e importe.');if(!BACKEND_URL)return msg('La PWA está lista. Falta conectar el backend de Apps Script.');try{let r=await fetch(BACKEND_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(d)}),x=await r.json();if(!x.ok)throw Error(x.error||'Error');
 
-msg('✓ Gasto guardado correctamente',true);
 
-// Preparar automáticamente el próximo gasto
-$('descripcion').value='';
-$('importe').value='';
-$('persona').value='Fer';
-$('categoria').value='Otros';
-$('medio').value='';
-$('observacion').value='';
-$('heard').textContent='';
+  // Bloquear botón inmediatamente
+  boton.disabled=true;
+  boton.textContent='GUARDANDO...';
 
-$('fecha').value=new Date().toLocaleDateString('en-CA',{
-  timeZone:'America/Argentina/Buenos_Aires'
-});
 
-// Volver arriba para cargar el siguiente
-window.scrollTo({top:0,behavior:'smooth'});}catch(e){msg('No se pudo guardar: '+e.message)}};if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js');</script></body></html>
+  try{
+
+    let r=await fetch(
+      BACKEND_URL,
+      {
+        method:'POST',
+
+        headers:{
+          'Content-Type':
+          'text/plain;charset=utf-8'
+        },
+
+        body:JSON.stringify(d)
+      }
+    );
+
+
+    let x=await r.json();
+
+
+    if(!x.ok)
+      throw Error(
+        x.error || 'Error'
+      );
+
+
+    msg(
+      '✓ Gasto guardado correctamente',
+      true
+    );
+
+
+    // LIMPIAR PARA EL PRÓXIMO GASTO
+
+    $('descripcion').value='';
+    $('importe').value='';
+
+    $('persona').value='Fer';
+
+    $('categoria').value='Otros';
+
+    $('medio').value='';
+
+    $('observacion').value='';
+
+    $('heard').textContent='';
+
+    $('fecha').value=fechaHoy();
+
+
+    // Reactivar botón
+
+    boton.disabled=false;
+
+    boton.textContent=
+      'GUARDAR GASTO';
+
+
+    // Volver arriba
+
+    window.scrollTo({
+      top:0,
+      behavior:'smooth'
+    });
+
+
+  }catch(e){
+
+    msg(
+      'No se pudo guardar: '+
+      e.message
+    );
+
+
+    // Si hubo error también
+    // permitimos volver a intentar
+
+    boton.disabled=false;
+
+    boton.textContent=
+      'GUARDAR GASTO';
+
+  }
+
+};
+
+
+if('serviceWorker' in navigator){
+
+  navigator.serviceWorker.register(
+    './sw.js'
+  );
+
+}
+
+</script>
+
+</body>
+</html>
